@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<configuration>
+	<placeholders>
+		<placeholder id="template_name">Salesforce to Workday Financials Account to Customer Broadcast</placeholder>
+	</placeholders>
+	<sections>
+		<section id="use_case">
+As a Salesforce admin I want to synchronize Accounts and Customers between Salesfoce and Workday.
+
+This Template should serve as a foundation for setting an online sync of Accounts from SalesForce instance to Customer in Workday instance. Everytime there is a new Account or a change in an already existing one with type stating with the string Customer, the integration will poll for changes in SalesForce source instance and it will be responsible for updating the Customer in the target Workday instance.
+
+Requirements have been set not only to be used as examples, but also to establish a starting point to adapt your integration to your requirements.
+
+As implemented, this Anypoint Template leverage the [Batch Module](http://www.mulesoft.org/documentation/display/current/Batch+Processing)
+The batch job is divided in Input, Process and On Complete stages.
+The integration is triggered by a poll defined in the flow that is going to trigger the application, querying newest SalesForce updates/creations matching a filter criteria and executing the batch job.
+During the Process stage, each Salesforce Account will be checked, if it has an existing matching Customer in the Workday instance.
+The last step of the Process stage will group the Accounts and insert/update them in Workday.
+Finally during the On Complete stage the Template will log output statistics data into the console.
+		</section>
+		<section id="considerations">
+<![CDATA[
+To make this Anypoint Template run, there are certain preconditions that must be considered. All of them deal with the preparations in both source (Salesforce) and destination (Workday) systems, that must be made in order for all to run smoothly. 
+**Failling to do so could lead to unexpected behavior of the template.**
+
+This particular Anypoint Template illustrate the broadcast use case between Salesforce and a Workday, thus it requires a Workday instance to work.
+]]>
+		</section>
+		<section id="wdayf_dst">
+<![CDATA[
+When creating new Workday customer, one of existing customer categories must be chosen. In order to do this, this template uses lookup table with pre-defined mappings between Salesforce data (Industry) and Workday Customer Category ID.
+Workday customer categories can be user defined, therefore the mapping must be edited by user manually before running this template.
+
+To view all the Workday Customer Categories, please type "customer categories" into search field in Workday system and select Customer Categories report.
+In the report you should see all the customer categories available. Select Integration IDs -> View Integration IDs from available actions of each customer 
+category and update the user-defined lookup table in the template's datamapper component manually.
+The default customer category ID can be edited in the Script view inside datamapper component. This category will be used if the source Account's Industry 
+value does not match any defined mappings in the lookup table.
+
+To find out more about DataMapper Lookup Tables, please read this [documentation page](http://www.mulesoft.org/documentation/display/current/Using+DataMapper+Lookup+Tables).
+
+It is not possible to delete customer in Workday system. Therefore, integration test is based on update of test Account in Salesforce identified by property `sfdc.testaccount.id`. 
+Use the ID actually returned by the Salesforce connector. 
+You can find the proper ID of an Account by using Salesforce Developer Console. Example query: `SELECT Id FROM Account WHERE Name = 'TestAccount'`.
+]]>
+		</section>
+		<section id="run_it">
+<![CDATA[
+See below.
+]]>
+		</section>
+		<section id="running_on_studio">
+<![CDATA[
+Once you have imported your Anypoint Template into Anypoint Studio you need to follow these steps to run it:
+
++ Locate the properties file `mule.dev.properties`, in src/main/resources
++ Complete all the properties required as per the examples in the section [Properties to be configured](#propertiestobeconfigured)
++ Once that is done, right click on you Anypoint Template project folder 
++ Hover you mouse over `"Run as"`
++ Click on  `"Mule Application"`
+]]>
+		</section>
+		<section id="running_on_cloudhub">
+<![CDATA[
+While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to Deployment > Advanced to set all environment variables detailed in **Properties to be configured** as well as the **mule.env**. 
+Follow other steps defined [here](#runonpremise) and once your app is all set and started, there is no need to do anything else. Every time a Account (with type starting with Customer) is created or modified, it will be automatically synchronised to supplied Workday instance.
+]]>
+		</section>
+		<section id="application_configuration">
+		<![CDATA[
+**Application configuration**
+
++ poll.frequencyMillis `60000`
++ poll.startDelayMillis `500`
++ watermark.default.expression `YESTERDAY`
+
+**Salesforce Connector configuration**
+
++ sfdc.username `joan.baez@orgb`
++ sfdc.password `JoanBaez456`
++ sfdc.securityToken `ces56arl7apQs56XTddf34X`
++ sfdc.url `https://login.salesforce.com/services/Soap/u/26.0`
+
+**Workday Connector configuration**
+
++ wdayf.user `wdayf_user`
++ wdayf.password `wdayf_password`
++ wdayf.endpoint `https://{your Workday domain}/ccx/service/{your tenant name}/Revenue_Management/v23.2`
+
+]]>
+		</section>
+		<section id="api_calls">
+<![CDATA[
+Salesforce imposes limits on the number of API Calls that can be made. However, we make API call to Salesforce only once during migration, so this is not something to worry about. 
+]]>
+		</section>
+		<section id="default_business_logic_xml">
+		<![CDATA[
+Functional aspect of the Template is implemented on this XML, directed by one flow that will poll for Salesforce creations/updates. The several message processors constitute four high level actions that fully implement the logic of this Template:
+
+1. During the Input stage the Template will go to the Salesforce and query all the existing Accounts that match the filter criteria.
+2. During the Process stage, each Salesforce Account ID will be checked in external ID field in Workday (Customer\_Reference\_ID), if it has an existing matching objects in Workday.
+3. Then upsert of the relevant Customer fields is performed in Workday
+4. Finally during the On Complete stage the Template will logoutput statistics data into the console.
+]]>
+		</section>
+		<section id="default_endpoints_xml">
+		<![CDATA[
+This file is conformed by a Flow containing the Poll that will periodically query Salesforce for updated/created Accounts that meet the defined criteria in the query and then executing the batch job process with the query results.
+]]>
+		</section>
+	</sections>
+</configuration>
