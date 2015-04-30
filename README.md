@@ -28,7 +28,7 @@ Please review the terms of the license before downloading and using this templat
 # Use Case <a name="usecase"/>
 As a Salesforce admin I want to synchronize Accounts and Customers between Salesfoce and Workday.
 
-This Template should serve as a foundation for setting an online sync of Accounts from SalesForce instance to Customer in Workday instance. Everytime there is a new Account or a change in an already existing one with type stating with the string Customer, the integration will poll for changes in SalesForce source instance and it will be responsible for updating the Customer in the target Workday instance.
+This Template should serve as a foundation for setting an online sync of Accounts from SalesForce instance to Customer in Workday instance. Every time there is a new Account or a change in an already existing one with type stating with the string Customer, the integration will poll for changes in SalesForce source instance and it will be responsible for updating the Customer in the target Workday instance.
 
 Requirements have been set not only to be used as examples, but also to establish a starting point to adapt your integration to your requirements.
 
