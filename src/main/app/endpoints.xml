@@ -16,9 +16,10 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
 				startDelay="${poll.startDelayMillis}" />
 			<watermark variable="lastQueryDate" default-expression="${watermark.default.expression}"
 				selector="MAX" selector-expression="#[payload.LastModifiedDate]" />
-            <sfdc:query config-ref="Salesforce" query="dsql:SELECT Id,Industry,Name,Website FROM Account WHERE Type LIKE 'Customer%' AND LastModifiedDate &gt;= #[lastQueryDate]" fetchSize="${page.size}" doc:name="Query Accounts with filtering criteria from Salesforce"/>
+            <sfdc:query config-ref="Salesforce" query="dsql:SELECT Id,Industry,Name,Website,LastModifiedDate FROM Account WHERE Type LIKE 'Customer%' AND LastModifiedDate &gt; #[flowVars['lastQueryDate']]" fetchSize="${page.size}" doc:name="Query Accounts with filtering criteria from Salesforce"/>
 
 		</poll>
+
 		<batch:execute name="migrateAccountsBatch" doc:name="Trigger Batch execute for Upsert in Workday" />
 		<exception-strategy ref="defaultChoiceExceptionStrategy"
 			doc:name="Reference Exception Strategy" />

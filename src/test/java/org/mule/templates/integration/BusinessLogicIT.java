@@ -48,7 +48,6 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
         System.setProperty("poll.startDelayMillis", "8000");
         System.setProperty("poll.frequencyMillis", "30000");
         System.setProperty("page.size", "200");
-
     }
 	
 	/**
