@@ -49,17 +49,6 @@ You can find the proper ID of an Account by using Salesforce Developer Console. 
 See below.
 ]]>
 		</section>
-		<section id="running_on_studio">
-<![CDATA[
-Once you have imported your Anypoint Template into Anypoint Studio you need to follow these steps to run it:
-
-+ Locate the properties file `mule.dev.properties`, in src/main/resources
-+ Complete all the properties required as per the examples in the section [Properties to be configured](#propertiestobeconfigured)
-+ Once that is done, right click on you Anypoint Template project folder 
-+ Hover you mouse over `"Run as"`
-+ Click on  `"Mule Application"`
-]]>
-		</section>
 		<section id="running_on_cloudhub">
 <![CDATA[
 While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to Deployment > Advanced to set all environment variables detailed in **Properties to be configured** as well as the **mule.env**. 
