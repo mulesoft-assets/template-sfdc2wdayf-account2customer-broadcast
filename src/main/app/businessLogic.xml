@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+<mule xmlns:spring="http://www.springframework.org/schema/beans" xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
 	xmlns:wd-revenue="http://www.mulesoft.org/schema/mule/wd-revenue"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core"
 	xmlns="http://www.mulesoft.org/schema/mule/core" 
@@ -13,7 +13,8 @@
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
 http://www.mulesoft.org/schema/mule/wd-revenue http://www.mulesoft.org/schema/mule/wd-revenue/current/mule-wd-revenue.xsd
-http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd">
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd">
 	<data-mapper:config name="Map_To_Pojo"
 		transformationGraphPath="map_to_pojo.grf" doc:name="Map_To_Pojo" />
 
@@ -32,7 +33,16 @@ http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schem
 			<batch:step name="upsertWorkdayCustomer">
                 <logger message="Upserting Customer with ID:  #[payload.Id], Name: #[payload.Name]" level="INFO" doc:name="Log Upsert"/>
 				<data-mapper:transform config-ref="Map_To_Pojo"
-					doc:name="Map To PutCustomersRequestType" />
+					doc:name="Map To PutCustomersRequestType" >
+                    <data-mapper:input-arguments>
+                        <data-mapper:input-argument key="phone">${wdayf.phone}</data-mapper:input-argument>
+                        <data-mapper:input-argument key="country">${wdayf.country}</data-mapper:input-argument>
+                        <data-mapper:input-argument key="street">${wdayf.street}</data-mapper:input-argument>
+                        <data-mapper:input-argument key="state">${wdayf.state}</data-mapper:input-argument>
+                        <data-mapper:input-argument key="city">${wdayf.city}</data-mapper:input-argument>
+                        <data-mapper:input-argument key="postalCode">${wdayf.postalCode}</data-mapper:input-argument>
+                    </data-mapper:input-arguments>
+                </data-mapper:transform>
 				<expression-component
 					doc:name="Add customer reference object if it already exists"><![CDATA[// if customer is already in Workday system, add customer reference object to payload to indicate update operation
 if( recordVars['wdayfCustomer'].responseResults.totalResults == 1 ) {
