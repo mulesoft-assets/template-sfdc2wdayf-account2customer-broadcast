@@ -19,12 +19,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mule.MessageExchangePattern;
 import org.mule.api.MuleEvent;
+import org.mule.api.lifecycle.InitialisationException;
 import org.mule.context.notification.NotificationException;
 import org.mule.processor.chain.SubflowInterceptingChainLifecycleWrapper;
 import org.mule.templates.builders.SfdcObjectBuilder;
 
 import com.mulesoft.module.batch.BatchTestHelper;
-import com.workday.revenue.GetCustomersResponseType;
 
 /**
  * The objective of this class is to validate the correct behavior of the Mule
@@ -67,12 +67,15 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 		}
 		stopFlowSchedulers(POLL_FLOW_NAME);
 		registerListeners();
+		initializeSubflows(props);				
+	}
 
+	private void initializeSubflows(final Properties props)	throws InitialisationException {
 		SFDC_TEST_ACCOUNT_ID = props.getProperty("sfdc.testaccount.id");
 		UPSERT_ACCOUNT_FLOW = getSubFlow("upsertAccountFlow");
 		UPSERT_ACCOUNT_FLOW.initialise();
 		RETRIEVE_CUSTOMER_FLOW = getSubFlow("retrieveCustomersFlow");
-		RETRIEVE_CUSTOMER_FLOW.initialise();				
+		RETRIEVE_CUSTOMER_FLOW.initialise();
 	}
 	
 
@@ -104,10 +107,11 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 	}
 
 	/**
-	 * Tests if update of a SFDC test Account results in Workday Prospect update
+	 * Tests if update of a SFDC test Account results in Workday Customer update
 	 * 
 	 * @throws Exception
 	 */
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testMainFlow() throws Exception {
 		// edit test data
@@ -122,27 +126,13 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 		helper.awaitJobTermination(TIMEOUT_SECONDS * 1000, 500);
 		helper.assertJobWasSuccessful();
 
-		MuleEvent event = RETRIEVE_CUSTOMER_FLOW.process(getTestEvent(
-				SFDC_TEST_ACCOUNT_ID, MessageExchangePattern.REQUEST_RESPONSE));
-		GetCustomersResponseType response = (GetCustomersResponseType) event
-				.getMessage().getPayload();
-
+		MuleEvent event = RETRIEVE_CUSTOMER_FLOW.process(getTestEvent(SFDC_TEST_ACCOUNT_ID, MessageExchangePattern.REQUEST_RESPONSE));
+		List<Map<String,String>> response = (List<Map<String,String>>) event.getMessage().getPayload();
 		// assertions
-		assertEquals("Workday should return one result", 1, response
-				.getResponseResults().get(0).getTotalResults().intValue());
-		assertEquals("The website should be the same", website, response
-				.getResponseData().get(0).getCustomer().get(0)
-				.getCustomerData().getBusinessEntityData().getContactData()
-				.getWebAddressData().get(0).getWebAddress());
-		assertEquals("The name should be the same", name, response
-				.getResponseData().get(0).getCustomer().get(0)
-				.getCustomerData().getCustomerName());
-		assertEquals("The phone should be the same", response.getResponseData()
-				.get(0).getCustomer().get(0).getCustomerData()
-				.getBusinessEntityData().getContactData()
-				.getPhoneData().get(0).getPhoneNumber(), "123-4567");
-		assertEquals("The postal code should be the same", response.getResponseData().get(0)
-				.getCustomer().get(0).getCustomerData()
-				.getBusinessEntityData().getContactData().getAddressData().get(0).getPostalCode(), "90210");
+		assertEquals("Workday should return one result", 1, response.size());
+		assertEquals("The website should be the same", website, response.get(0).get("Website"));
+		assertEquals("The name should be the same", name, response.get(0).get("Name"));
+		assertEquals("The phone should be the same", "123-4567", response.get(0).get("Phone"));
+		assertEquals("The postal code should be the same", "90210", response.get(0).get("PostalCode"));
 	}
 }
