@@ -28,16 +28,14 @@ This particular Anypoint Template illustrate the broadcast use case between Sale
 		</section>
 		<section id="wdayf_dst">
 <![CDATA[
-When creating new Workday customer, one of existing customer categories must be chosen. In order to do this, this template uses lookup table with pre-defined mappings between Salesforce data (Industry) and Workday Customer Category ID.
+When creating new Workday customer, one of existing customer categories must be chosen. In order to do this, this template uses DataWeave function with pre-defined mappings between Salesforce data (Industry) and Workday Customer Category ID.
 Workday customer categories can be user defined, therefore the mapping must be edited by user manually before running this template.
 
 To view all the Workday Customer Categories, please type "customer categories" into search field in Workday system and select Customer Categories report.
 In the report you should see all the customer categories available. Select Integration IDs -> View Integration IDs from available actions of each customer 
-category and update the user-defined lookup table in the template's datamapper component manually.
-The default customer category ID can be edited in the Script view inside datamapper component. This category will be used if the source Account's Industry 
+category and update the user-defined function in the template's DataWeave component (Map to PutCustomerRequestType) manually.
+The default customer category ID can be edited in the same DataWeave component by assigning to *defaultIndustry* variable. This category will be used if the source Account's Industry 
 value does not match any defined mappings in the lookup table.
-
-To find out more about DataMapper Lookup Tables, please read this [documentation page](http://www.mulesoft.org/documentation/display/current/Using+DataMapper+Lookup+Tables).
 
 It is not possible to delete customer in Workday system. Therefore, integration test is based on update of test Account in Salesforce identified by property `sfdc.testaccount.id`. 
 Use the ID actually returned by the Salesforce connector. 
@@ -61,14 +59,14 @@ Follow other steps defined [here](#runonpremise) and once your app is all set an
 
 + poll.frequencyMillis `60000`
 + poll.startDelayMillis `500`
-+ watermark.default.expression `YESTERDAY`
++ watermark.default.expression `YESTERDAY` or `2015-10-08T12:00:00.000Z`
 
 **Salesforce Connector configuration**
 
 + sfdc.username `joan.baez@orgb`
 + sfdc.password `JoanBaez456`
 + sfdc.securityToken `ces56arl7apQs56XTddf34X`
-+ sfdc.url `https://login.salesforce.com/services/Soap/u/26.0`
++ sfdc.url `https://login.salesforce.com/services/Soap/u/32.0`
 
 **Workday Connector configuration**
 

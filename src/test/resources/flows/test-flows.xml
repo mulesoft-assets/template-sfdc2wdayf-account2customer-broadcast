@@ -1,16 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:spring="http://www.springframework.org/schema/beans" xmlns:wd-revenue="http://www.mulesoft.org/schema/mule/wd-revenue" 
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:wd-revenue="http://www.mulesoft.org/schema/mule/wd-revenue" 
 xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" 
 xmlns="http://www.mulesoft.org/schema/mule/core" 
 xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
-version="EE-3.6.1" 
+ 
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
 xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
 http://www.mulesoft.org/schema/mule/wd-revenue http://www.mulesoft.org/schema/mule/wd-revenue/current/mule-wd-revenue.xsd
-http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd">
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
     <sub-flow name="retrieveCustomersFlow">
-        <wd-revenue:get-customers config-ref="Workday_Revenue_Management"  doc:name="Workday Revenue Management" getCustomersRequest-ref="#[org.mule.templates.CustomerRequest.createByID(payload)]"/>
+        <dw:transform-message doc:name="Create Request">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	requestCriteria: [{
+		customerReferenceID: payload
+	}],
+	responseGroup: [{
+		includeCustomerData: true,
+		includeReference: true
+	}]
+} as :object {class : "com.workday.revenue.GetCustomersRequestType"}]]></dw:set-payload>
+        </dw:transform-message>
+        <wd-revenue:get-customers config-ref="Workday_Revenue_Management"  doc:name="Workday Revenue Management" />
+        <dw:transform-message doc:name="POJO to Maps">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload.responseData.customer map {
+	Name       : $[0].customerData.customerName,
+	Website    : $[0].customerData.businessEntityData.contactData.webAddressData[0].webAddress,
+	Phone      : $[0].customerData.businessEntityData.contactData.phoneData[0].phoneNumber,
+	PostalCode : $[0].customerData.businessEntityData.contactData.addressData[0].postalCode
+} when payload.responseData.customer != null otherwise []]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
     </sub-flow>
     <sub-flow name="upsertAccountFlow">
         <sfdc:upsert config-ref="Salesforce" externalIdFieldName="Id" type="Account" doc:name="upsert Account">
