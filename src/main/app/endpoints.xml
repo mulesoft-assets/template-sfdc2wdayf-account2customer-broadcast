@@ -17,7 +17,7 @@ http://www.springframework.org/schema/beans http://www.springframework.org/schem
 				startDelay="${poll.startDelayMillis}" />
 			<watermark variable="lastQueryDate" default-expression="${watermark.default.expression}"
 				selector="MAX" selector-expression="#[payload.LastModifiedDate]" />
-            <sfdc:query config-ref="Salesforce" query="dsql:SELECT Id,BillingStreet,BillingCity,BillingPostalCode,BillingState,BillingCountry,Industry,Name,Website,Phone,LastModifiedDate FROM Account WHERE Type LIKE 'Customer%' AND LastModifiedDate &gt; #[flowVars.lastQueryDate]" fetchSize="${page.size}" doc:name="Query Accounts with filtering criteria from Salesforce"/>
+            <sfdc:query config-ref="Salesforce" query="dsql:SELECT Id,BillingAddress,Industry,Name,Website,Phone,LastModifiedDate FROM Account WHERE Type LIKE 'Customer%' AND LastModifiedDate &gt; #[flowVars.lastQueryDate]" fetchSize="${page.size}" doc:name="Query Accounts with filtering criteria from Salesforce"/>
 
 		</poll>
 

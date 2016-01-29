@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:wd-revenue="http://www.mulesoft.org/schema/mule/wd-revenue" 
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:wd-connector="http://www.mulesoft.org/schema/mule/wd-connector" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:spring="http://www.springframework.org/schema/beans" 
 xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" 
 xmlns="http://www.mulesoft.org/schema/mule/core" 
 xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
@@ -7,39 +7,43 @@ xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
 xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
-http://www.mulesoft.org/schema/mule/wd-revenue http://www.mulesoft.org/schema/mule/wd-revenue/current/mule-wd-revenue.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
-http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
-    <sub-flow name="retrieveCustomersFlow">
-        <dw:transform-message doc:name="Create Request">
+http://www.mulesoft.org/schema/mule/wd-connector http://www.mulesoft.org/schema/mule/wd-connector/current/mule-wd-connector.xsd">
+    <flow name="retrieveCustomersFlow">
+        <dw:transform-message doc:name="Create GetCustomers Request">
             <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
+%output application/xml
+%namespace ns0 urn:com.workday/bsvc
 ---
 {
-	requestCriteria: [{
-		customerReferenceID: payload
-	}],
-	responseGroup: [{
-		includeCustomerData: true,
-		includeReference: true
-	}]
-} as :object {class : "com.workday.revenue.GetCustomersRequestType"}]]></dw:set-payload>
+	ns0#Get_Customers_Request: {
+		ns0#Request_Criteria: {
+			ns0#Customer_Reference_ID: payload
+		},
+		ns0#Response_Group: {
+			ns0#Include_Reference: true,
+			ns0#Include_Customer_Data: true
+		}
+	}
+}]]></dw:set-payload>
         </dw:transform-message>
-        <wd-revenue:get-customers config-ref="Workday_Revenue_Management"  doc:name="Workday Revenue Management" />
-        <dw:transform-message doc:name="POJO to Maps">
+        <wd-connector:invoke config-ref="Workday__Basic" type="Revenue_Management||Get_Customers" doc:name="Get Customer"/>
+        <dw:transform-message metadata:id="f6da61a5-620e-45c2-b5c3-ca47c5899a1b" doc:name="GetCustomers Response">
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
+%namespace ns0 urn:com.workday/bsvc
 ---
-payload.responseData.customer map {
-	Name       : $[0].customerData.customerName,
-	Website    : $[0].customerData.businessEntityData.contactData.webAddressData[0].webAddress,
-	Phone      : $[0].customerData.businessEntityData.contactData.phoneData[0].phoneNumber,
-	PostalCode : $[0].customerData.businessEntityData.contactData.addressData[0].postalCode
-} when payload.responseData.customer != null otherwise []]]></dw:set-payload>
+{
+	TotalResults: payload.ns0#Get_Customers_Response.ns0#Response_Results.ns0#Total_Results as :number,
+	CustomerName: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Data.ns0#Customer_Name,
+	PhoneNumber: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Data.ns0#Business_Entity_Data.ns0#Contact_Data.ns0#Phone_Data.ns0#Phone_Number,
+	WebAddress: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Data.ns0#Business_Entity_Data.ns0#Contact_Data.ns0#Web_Address_Data.ns0#Web_Address,
+	PostalCode: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Data.ns0#Business_Entity_Data.ns0#Contact_Data.ns0#Address_Data.ns0#Postal_Code
+} when payload.ns0#Get_Customers_Response.ns0#Response_Results.ns0#Total_Results != 0 otherwise []]]></dw:set-payload>
         </dw:transform-message>
-        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
-    </sub-flow>
+        <logger message="Retrieved Workday Customer: #[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
     <sub-flow name="upsertAccountFlow">
         <sfdc:upsert config-ref="Salesforce" externalIdFieldName="Id" type="Account" doc:name="upsert Account">
             <sfdc:objects ref="#[payload]"/>

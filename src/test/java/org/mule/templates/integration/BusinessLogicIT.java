@@ -20,6 +20,7 @@ import org.junit.Test;
 import org.mule.MessageExchangePattern;
 import org.mule.api.MuleEvent;
 import org.mule.api.lifecycle.InitialisationException;
+import org.mule.construct.Flow;
 import org.mule.context.notification.NotificationException;
 import org.mule.processor.chain.SubflowInterceptingChainLifecycleWrapper;
 import org.mule.templates.builders.SfdcObjectBuilder;
@@ -38,8 +39,10 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 
 	private static final String PATH_TO_TEST_PROPERTIES = "./src/test/resources/mule.test.properties";
 	protected static final int TIMEOUT_SECONDS = 300;
+	private static final String POSTAL_CODE = "90210";
+	private static final String PHONE = "123-4567";
 	private SubflowInterceptingChainLifecycleWrapper UPSERT_ACCOUNT_FLOW;
-	private SubflowInterceptingChainLifecycleWrapper RETRIEVE_CUSTOMER_FLOW;
+	private Flow RETRIEVE_CUSTOMER_FLOW;
 	private String SFDC_TEST_ACCOUNT_ID;
 	private BatchTestHelper helper;
 
@@ -74,8 +77,7 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 		SFDC_TEST_ACCOUNT_ID = props.getProperty("sfdc.testaccount.id");
 		UPSERT_ACCOUNT_FLOW = getSubFlow("upsertAccountFlow");
 		UPSERT_ACCOUNT_FLOW.initialise();
-		RETRIEVE_CUSTOMER_FLOW = getSubFlow("retrieveCustomersFlow");
-		RETRIEVE_CUSTOMER_FLOW.initialise();
+		RETRIEVE_CUSTOMER_FLOW = getFlow("retrieveCustomersFlow");
 	}
 	
 
@@ -97,8 +99,8 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 				.with("Name", name)
 				.with("Type", "Customer")
 				.with("Website", website)
-				.with("BillingPostalCode", "90210")
-				.with("Phone", "123-4567").build();
+				.with("BillingPostalCode", POSTAL_CODE)
+				.with("Phone", PHONE).build();
 		List<Map<String, Object>> payload = new ArrayList<>();
 		payload.add(account);
 
@@ -127,12 +129,13 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 		helper.assertJobWasSuccessful();
 
 		MuleEvent event = RETRIEVE_CUSTOMER_FLOW.process(getTestEvent(SFDC_TEST_ACCOUNT_ID, MessageExchangePattern.REQUEST_RESPONSE));
-		List<Map<String,String>> response = (List<Map<String,String>>) event.getMessage().getPayload();
+		Map<String, Object> response = (Map<String, Object>) event.getMessage().getPayload();
+
 		// assertions
-		assertEquals("Workday should return one result", 1, response.size());
-		assertEquals("The website should be the same", website, response.get(0).get("Website"));
-		assertEquals("The name should be the same", name, response.get(0).get("Name"));
-		assertEquals("The phone should be the same", "123-4567", response.get(0).get("Phone"));
-		assertEquals("The postal code should be the same", "90210", response.get(0).get("PostalCode"));
+		assertEquals("Workday should return one result", 1, response.get("TotalResults"));
+		assertEquals("The website should be the same", website, response.get("WebAddress"));
+		assertEquals("The name should be the same", name, response.get("CustomerName"));
+		assertEquals("The phone should be the same", PHONE, response.get("PhoneNumber"));
+		assertEquals("The postal code should be the same", POSTAL_CODE, response.get("PostalCode"));
 	}
 }

@@ -12,6 +12,7 @@ import java.util.Properties;
 
 import org.junit.Rule;
 import org.mule.api.config.MuleProperties;
+import org.mule.construct.Flow;
 import org.mule.tck.junit4.FunctionalTestCase;
 import org.mule.tck.junit4.rule.DynamicPort;
 import org.mule.tck.probe.PollingProber;
@@ -100,6 +101,10 @@ public abstract class AbstractTemplateTestCase extends FunctionalTestCase {
 	
 	protected void waitForPollToRun() {
 		pollProber.check(new ListenerProbe(pipelineListener));
+	}
+	
+	protected Flow getFlow(String flowName) {
+		return (Flow) muleContext.getRegistry().lookupObject(flowName);
 	}
 }
 
