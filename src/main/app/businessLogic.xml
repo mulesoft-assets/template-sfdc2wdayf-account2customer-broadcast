@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:spring="http://www.springframework.org/schema/beans" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
-	xmlns:wd-revenue="http://www.mulesoft.org/schema/mule/wd-revenue"
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:wd-connector="http://www.mulesoft.org/schema/mule/wd-connector" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core"
 	xmlns="http://www.mulesoft.org/schema/mule/core" 
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
@@ -11,174 +10,135 @@
 	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
-http://www.mulesoft.org/schema/mule/wd-revenue http://www.mulesoft.org/schema/mule/wd-revenue/current/mule-wd-revenue.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
-http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/wd-connector http://www.mulesoft.org/schema/mule/wd-connector/current/mule-wd-connector.xsd">
 	<batch:job name="syncAccountsBatch">
 		<batch:threading-profile poolExhaustedAction="WAIT" />
 
 		<batch:process-records>
 			<batch:step name="getCustomerInWorkdayStep">
-				<enricher doc:name="Enrich payload with 'wdayfCustomer'"
-					source="#[payload]" target="#[payload.wdayfCustomer]">
+				<enricher doc:name="Enrich payload with 'wdayfCustomerReference'"
+					source="#[payload.type == null || payload.value == null ? null : payload]" target="#[payload.wdayfCustomerReference]">
                     <processor-chain doc:name="Processor Chain">
-                        <dw:transform-message doc:name="Create GetCustomerRequestType">
+                        <dw:transform-message doc:name="Create GetCustomers Request">
                             <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
+%output application/xml
+%namespace ns0 urn:com.workday/bsvc
 ---
 {
-	requestCriteria: [{
-		customerReferenceID: payload.Id
-	}],
-	responseGroup: [{
-		includeCustomerData : true,
-		includeReference: true
-	}]
-} as :object {class : "com.workday.revenue.GetCustomersRequestType"}]]></dw:set-payload>
+	ns0#Get_Customers_Request: {
+		ns0#Request_Criteria: {
+			ns0#Customer_Reference_ID: payload.Id
+		},
+		ns0#Response_Group: {
+			ns0#Include_Reference: true,
+			ns0#Include_Customer_Data: true
+		}
+	}
+}]]></dw:set-payload>
                         </dw:transform-message>
-                        <wd-revenue:get-customers config-ref="Workday_Revenue_Management" doc:name="Get Customer by ID"/>
+                        <wd-connector:invoke config-ref="Workday__Basic" type="Revenue_Management||Get_Customers" doc:name="Get Customer by ID"/>
+                        <dw:transform-message metadata:id="6519e0d1-9381-4686-b460-44e8ad18e4cc" doc:name="Get Customer Reference">
+                            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%namespace ns0 urn:com.workday/bsvc
+---
+{
+	type: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Reference.ns0#ID.@ns0#type,
+	value: payload.ns0#Get_Customers_Response.ns0#Response_Data.ns0#Customer.ns0#Customer_Reference.ns0#ID
+}]]></dw:set-payload>
+                        </dw:transform-message>
                     </processor-chain>
 
 				</enricher>
 			</batch:step>
 			<batch:step name="upsertWorkdayCustomer">
                 <logger message="Upserting Customer with ID:  #[payload.Id], Name: #[payload.Name]" level="INFO" doc:name="Log Upsert"/>
-                <dw:transform-message doc:name="Map to PutCustomerRequestType">
+                <dw:transform-message doc:name="Create PutCustomer Request">
                     <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
-%function countryLookup(sfdcCountry) {
-	(country: 'USA') when sfdcCountry == 'USA' //add new line like this for different countries
-} unless sfdcCountry is :null otherwise country: null
+%function countryMapping(salesforceCountry) {
+	(workdayCountry: 'USA') when salesforceCountry == 'USA'
+} unless salesforceCountry is :null otherwise workdayCountry: p('wdayf.country')
 
-%function stateLookup(sfdcState) {
-	(state: 'USA-CA') when sfdcState == 'CA' //add new line like this for different states
-} unless sfdcState is :null otherwise state: null
+%function industryToCustomerCategoryMapping(industry) {
+	(customerCategory: 'CUSTOMER_CATEGORY-6') when industry == 'Biotechnology',
+	(customerCategory: 'CUSTOMER_CATEGORY-7') when industry == 'Retail',
+	(customerCategory: 'CUSTOMER_CATEGORY-4-8') when industry == 'Manufacturing',
+	(customerCategory: 'CUSTOMER_CATEGORY-4') when industry == 'Hospitality',
+	(customerCategory: 'CUSTOMER_CATEGORY-5') when industry == 'Technology',
+	(customerCategory: 'CUSTOMER_CATEGORY-1') when industry == 'Finance',
+	(customerCategory: 'CUSTOMER_CATEGORY-6-9') when industry == 'Healthcare'
+} unless industry is :null otherwise customerCategory: "CUSTOMER_CATEGORY-3"
 
-%var defaultIndustry = "CUSTOMER_CATEGORY-3"
-%function industryLookup(sfdcIndustry) {
-	(industry: 'CUSTOMER_CATEGORY-6')   when sfdcIndustry == 'Biotechnology', 
-	(industry: 'CUSTOMER_CATEGORY-7')   when sfdcIndustry == 'Retail',
-	(industry: 'CUSTOMER_CATEGORY-4-8') when sfdcIndustry == 'Manufacturing',
-	(industry: 'CUSTOMER_CATEGORY-4')   when sfdcIndustry == 'Hospitality',
-	(industry: 'CUSTOMER_CATEGORY-5')   when sfdcIndustry == 'Technology',
-	(industry: 'CUSTOMER_CATEGORY-1')   when sfdcIndustry == 'Finance',
-	(industry: 'CUSTOMER_CATEGORY-6-9') when sfdcIndustry == 'Healthcare'
-} unless sfdcIndustry is :null otherwise industry: defaultIndustry
+%function stateMapping(salesforceState) {
+	(workdayState: 'USA-CA') when salesforceState == 'CA'
+} unless salesforceState is :null otherwise workdayState: p('wdayf.state')
+%output application/xml
+%namespace ns0 urn:com.workday/bsvc
 ---
 {
-    "addOnly": null,
-    "customerData": {
-        "businessEntityData": {
-            "businessEntityName": payload.Name,
-            "contactData": {
-                "addressData": [
-                    {
-                        "addressLineData": [{
-                            "descriptor": null,
-                            "type": "ADDRESS_LINE_1",
-                            "value": payload.BillingStreet default p('wdayf.street')
-                        }],
-                        "countryReference": {
-                            "descriptor": null,
-                            "ID": [{
-                                "type": "ISO_3166-1_Alpha-3_Code",
-                                "value": countryLookup(payload.BillingCountry).country default p('wdayf.country')
-                            }]
-                        },
-                        "countryRegionReference": {
-                            "descriptor": null,
-                            "ID": [{
-                                "type": "Country_Region_ID",
-                                "value": stateLookup(payload.BillingState).state default p('wdayf.state')
-                            }]
-                        },
-                        "effectiveDate": now as :date,
-                        "municipality": payload.BillingCity default p('wdayf.city'),
-                        "postalCode": payload.BillingPostalCode default p('wdayf.postalCode'),
-                        "usageData": [
-                            {
-                                "public": false,
-                                "typeData": [{
-                                    "primary": true,
-                                    "typeReference": {
-                                        "ID": [{
-                                            "type": "Communication_Usage_Type_ID",
-                                            "value": "BUSINESS"
-                                        }]
-                                    }
-                                }]
-                            }
-                        ]
-                    }
-                ],
-                "phoneData": [{
-                    "areaCode": null,
-                    "countryISOCode": null,
-                    "formattedPhone": null,
-                    "internationalPhoneCode": null,
-                    "phoneDeviceTypeReference": {
-                        "descriptor": null,
-                        "ID": [{
-                            "type": "Phone_Device_Type_ID",
-                            "value": "1063.5"
-                        }]
-                    },
-                    "phoneExtension": null,
-                    "phoneNumber": payload.Phone default p('wdayf.phone'),
-                    "usageData": [{
-                        "public": true,
-                        "typeData": [{
-                            "primary": true,
-                            "typeReference": {
-                                "descriptor": null,
-                                "ID": [{
-                                    "type": "Communication_Usage_Type_ID",
-                                    "value": "BUSINESS"
-                                }]
-                            }
-                        }]
-                    }
-                ]}
-                ],
-                "webAddressData": [
-                    {
-                        "usageData": [{
-                            "public": null,
-                            "typeData": [{
-                                "primary": true,
-                                "typeReference": {
-                                    "ID": [{
-                                        "type": "Communication_Usage_Type_ID",
-                                        "value": "BUSINESS"
-                                    }]
-                                }
-                            }]
-                        }],
-                        "webAddress": payload.Website when (payload.Website matches /http(s)?:\/\/.*/) 
-            	                                      otherwise "http://" ++ payload.Website
-                    }
-                ]
-            }
-        },
-        "customerCategoryReference": {
-            "ID": [
-                {
-                    "type": "Customer_Category_ID",
-                    "value": industryLookup(payload.Industry).industry default defaultIndustry
-                }
-            ]
-        },
-        "customerID": null,
-        "customerName": payload.Name,
-        "customerReferenceID": payload.Id
-    },
-    "customerReference": payload.wdayfCustomer.responseData[0].customer[0].customerReference
-                         when (payload.wdayfCustomer.responseResults.totalResults == 1) 
-                         otherwise null
-} as :object {class: "com.workday.revenue.PutCustomerRequestType"}]]></dw:set-payload>
+	ns0#Put_Customer_Request: {
+		(ns0#Customer_Reference: {
+			ns0#ID @(ns0#type: payload.wdayfCustomerReference.type): payload.wdayfCustomerReference.value
+		}) when payload.wdayfCustomerReference != null,
+		ns0#Customer_Data: {
+			ns0#Customer_Reference_ID: payload.Id,
+			ns0#Customer_Name: payload.Name,
+			ns0#Customer_Category_Reference: {
+				ns0#ID @(ns0#type: "Customer_Category_ID"): industryToCustomerCategoryMapping(payload.Industry).customerCategory default "CUSTOMER_CATEGORY-3"
+			},
+			ns0#Business_Entity_Data: {
+				ns0#Business_Entity_Name: payload.Name,
+				ns0#Contact_Data: {
+					ns0#Address_Data: {
+						ns0#Country_Reference: {
+							ns0#ID @(ns0#type: "ISO_3166-1_Alpha-3_Code"): countryMapping(payload.BillingAddress.country).workdayCountry default p('wdayf.country')
+						},
+						ns0#Address_Line_Data @(ns0#Type: "ADDRESS_LINE_1"): payload.BillingAddress.street default p('wdayf.street'),
+						ns0#Municipality: payload.BillingAddress.city default p('wdayf.city'),
+						ns0#Country_Region_Reference: {
+							ns0#ID @(ns0#type: "Country_Region_ID"): stateMapping(payload.BillingAddress.state).workdayState default p('wdayf.state')
+						},
+						ns0#Postal_Code: payload.BillingAddress.postalCode default p('wdayf.postalCode'),
+						ns0#Usage_Data @(ns0#Public: false): {
+							ns0#Type_Data @(ns0#Primary: true): {
+								ns0#Type_Reference: {
+									ns0#ID @(ns0#type: "Communication_Usage_Type_ID"): "BUSINESS"
+								}
+							}
+						}
+					},
+					ns0#Phone_Data: {
+						ns0#Phone_Number: payload.Phone default p('wdayf.phone'),
+						ns0#Phone_Device_Type_Reference: {
+							ns0#ID @(ns0#type: "Phone_Device_Type_ID"): "1063.5"
+						},
+						ns0#Usage_Data @(ns0#Public: true): {
+							ns0#Type_Data @(ns0#Primary: true): {
+								ns0#Type_Reference: {
+									ns0#ID @(ns0#type: "Communication_Usage_Type_ID"): "BUSINESS"
+								}
+							}
+						}
+					},
+					(ns0#Web_Address_Data: {
+						ns0#Web_Address: payload.Website when (payload.Website matches /http(s)?:\/\/.*/)  otherwise "http://" ++ payload.Website,
+						ns0#Usage_Data: {
+							ns0#Type_Data @(ns0#Primary: true): {
+								ns0#Type_Reference: {
+									ns0#ID @(ns0#type: "Communication_Usage_Type_ID"): "BUSINESS"
+								}
+							}
+						}
+					}) when payload.Website != null
+				}
+			}
+		}
+	}
+}]]></dw:set-payload>
                 </dw:transform-message>
-				<wd-revenue:put-customer config-ref="Workday_Revenue_Management"
-					doc:name="Upsert Customer" />
+                <wd-connector:invoke config-ref="Workday__Basic" type="Revenue_Management||Put_Customer" doc:name="Upsert Customer"/>
 			</batch:step>
 
 		</batch:process-records>
