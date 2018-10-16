@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='utf-8'?>
 <configuration>
 	<placeholders>
 		<placeholder id="template_name">Salesforce to Workday Financials Account to Customer Broadcast</placeholder>
@@ -7,63 +7,63 @@
 		<section id="use_case">
 As a Salesforce admin I want to synchronize Accounts and Customers between Salesfoce and Workday.
 
-This Template should serve as a foundation for setting an online sync of Accounts from SalesForce instance to Customer in Workday instance. Every time there is a new Account or a change in an already existing one with type stating with the string Customer, the integration will poll for changes in SalesForce source instance and it will be responsible for updating the Customer in the target Workday instance.
+This template serves as a foundation for setting an online sync of Accounts from SalesForce instance to Customer in Workday instance. Every time there is a new Account or a change in an already existing one with type stating with the string Customer, the integration will poll for changes in SalesForce source instance and it will be responsible for updating the Customer in the target Workday instance.
 
 Requirements have been set not only to be used as examples, but also to establish a starting point to adapt your integration to your requirements.
 
-As implemented, this Anypoint Template leverage the [Batch Module](http://www.mulesoft.org/documentation/display/current/Batch+Processing)
+As implemented, this template leverage the Mule batch module
 
 The integration is triggered by a scheduler defined in the flow that is going to trigger the application, querying newest SalesForce updates/creations matching a filter criteria and executing the batch job.
-During the Process stage, each Salesforce Account will be checked, if it has an existing matching Customer in the Workday instance.
-The last step of the Process stage will insert/update the Customers in Workday.
-Finally during the On Complete stage the Template will log output statistics data into the console.
+During the Process stage, each Salesforce Account is checked, if it has an existing matching Customer in the Workday instance.
+The last step of the Process stage will inserts or updates the Customers in Workday.
+Finally during the On Complete stage the Template logs output statistics data into the console.
 		</section>
 		<section id="considerations">
-<![CDATA[
-To make this Anypoint Template run, there are certain preconditions that must be considered. All of them deal with the preparations in both source (Salesforce) and destination (Workday) systems, that must be made in order for all to run smoothly. 
-**Failling to do so could lead to unexpected behavior of the template.**
 
-This particular Anypoint Template illustrate the broadcast use case between Salesforce and a Workday, thus it requires a Workday instance to work.
-]]>
+To make this template run, there are certain preconditions that must be considered. All of them deal with the preparations in both source (Salesforce) and destination (Workday) systems, that must be made for the template to run smoothly. 
+**Failing to do so could lead to unexpected behavior of the template.**
+
+This template illustrates the broadcast use case between Salesforce and a Workday, thus it requires a Workday instance to work.
+
 		</section>
 		<section id="wdayf_dst">
-			<![CDATA[
+			
 When creating new Workday customer, one of existing customer categories must be chosen. In order to do this, this template uses lookup table with pre-defined mappings between Salesforce data (Industry) and Workday Customer Category ID.
 Workday customer categories can be user defined, therefore the mapping must be edited by user manually before running this template.
 
 To view all the Workday Customer Categories, please type "customer categories" into search field in Workday system and select Customer Categories report.
-In the report you should see all the customer categories available. Select Integration IDs -> View Integration IDs from available actions of each customer
+In the report you should see all the customer categories available. Select Integration IDs -&gt; View Integration IDs from available actions of each customer
 category and update the function *industryToCustomerCategoryMapping* in the template's DataWeave component 'Prepare put customer request' manually.
 The default customer category ID can be edited inside the same DataWeave component in the row where customer category ID is set. This category will be used if the source Account's Industry
 value does not match any defined mappings in the function.
-]]>
+
 		</section>
 		<section id="run_it">
-<![CDATA[
+
 See below.
-]]>
+
 		</section>
 		<section id="running_on_cloudhub">
-<![CDATA[
-While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to Deployment > Advanced to set all environment variables detailed in **Properties to be configured** as well as the **mule.env**. 
+
+While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to Deployment &gt; Advanced to set all environment variables detailed in **Properties to be configured** as well as the **mule.env**. 
 Follow other steps defined [here](#runonpremise) and once your app is all set and started, there is no need to do anything else. Every time a Account (with type starting with Customer) is created or modified, it will be automatically synchronised to supplied Workday instance.
-]]>
+
 		</section>
 		<section id="application_configuration">
-		<![CDATA[
-**Application configuration**
+		
+**Application Configuration**
 
 + scheduler.frequency= `60000`
 + scheduler.start.delay= `500`
 + watermark.default.expression ` (now() - |PT5M|) as String` or ` 2018-01-02T15:53:00Z`
 
-**Salesforce Connector configuration**
+**Salesforce Connector Configuration**
 
 + sfdc.username `joan.baez@orgb`
 + sfdc.password `JoanBaez456`
 + sfdc.securityToken `ces56arl7apQs56XTddf34X`
 
-**Workday Connector configuration**
+**Workday Connector Configuration**
 
 + wdayf.username `joan`
 + wdayf.tenant `acme_pt1`
@@ -77,27 +77,27 @@ Follow other steps defined [here](#runonpremise) and once your app is all set an
 + wdayf.street `Main Street 123`
 + wdayf.phone `123-4567`
 
-]]>
+
 		</section>
 		<section id="api_calls">
-<![CDATA[
+
 Salesforce imposes limits on the number of API Calls that can be made. However, we make API call to Salesforce only once during migration, so this is not something to worry about. 
-]]>
+
 		</section>
 		<section id="default_business_logic_xml">
-		<![CDATA[
+		
 Functional aspect of the Template is implemented on this XML, directed by one flow that will poll for Salesforce creations/updates. The several message processors constitute four high level actions that fully implement the logic of this Template:
 
 1. Firstly the Template will go to the Salesforce and query all the existing Accounts that match the filter criteria.
-2. During the Process stage, each Salesforce Account ID will be checked in external ID field in Workday (Customer\_Reference\_ID), if it has an existing matching objects in Workday.
+2. During the Process stage, each Salesforce Account ID is checked in external ID field in Workday (Customer\_Reference\_ID), if it has an existing matching objects in Workday.
 3. Then upsert of the relevant Customer fields is performed in Workday
-4. Finally during the On Complete stage the Template will log output statistics data into the console.
-]]>
+4. Finally during the On Complete stage the Template logs output statistics data into the console.
+
 		</section>
 		<section id="default_endpoints_xml">
-		<![CDATA[
+		
 This file is conformed by a Flow containing the Scheduler that will periodically query Salesforce for updated/created Accounts that meet the defined criteria in the query and then executing the batch job process with the query results.
-]]>
+
 		</section>
 	</sections>
 </configuration>
