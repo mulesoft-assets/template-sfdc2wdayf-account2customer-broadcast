@@ -35,13 +35,9 @@ ns ns0 urn:com.workday/bsvc
 }]]></ee:set-variable>
 						</ee:variables>
 					</ee:transform>
-					<workday:invoke doc:name="Invoke"
-						doc:id="6a07e811-023b-45d7-83dd-b3d7dc0804bb" config-ref="Workday_Config"
-						service="Revenue_Management" operation="Get_Customers" target="getCustomerResponse">
-						<workday:message>
-							<workday:body><![CDATA[#[vars.getCustomerRequest]]]></workday:body>
-						</workday:message>
-					</workday:invoke>
+					<workday:revenue-management doc:name="Get Customers" doc:id="dc49f59c-ae2a-4159-b0ad-67909498fc1e" config-ref="Workday_Config_version_30" operation="Get_Customers" target="getCustomerResponse">
+						<workday:content ><![CDATA[#[vars.getCustomerRequest]]]></workday:content>
+					</workday:revenue-management>
 					<ee:transform doc:name="Prepare Workday Customer Reference"
 						doc:id="0e44967e-228c-48ab-a08d-cf1036662e9e">
 						<ee:message>
@@ -149,9 +145,7 @@ fun stateMapping(salesforceState) =
 }]]></ee:set-payload>
 						</ee:message>
 					</ee:transform>
-					<workday:invoke service="Revenue_Management"
-						operation="Submit_Customer" doc:name="Invoke"
-						doc:id="c7c928f5-567c-434f-9ea1-83c2ab298a47" config-ref="Workday_Config" />
+					<workday:revenue-management operation='Submit_Customer' doc:name="Submit Customer" doc:id="1a9119a7-b28f-4355-9cbb-e445d9d0dfaf" config-ref="Workday_Config_version_30"/>
 				</batch:step>
 			</batch:process-records>
 			<batch:on-complete>
