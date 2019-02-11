@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:workday="http://www.mulesoft.org/schema/mule/workday"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+	xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/workday http://www.mulesoft.org/schema/mule/workday/current/mule-workday.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<munit:config name="test-suite.xml" />
+	<configuration-properties doc:name="Configuration properties" doc:id="97222439-712b-48f0-98d2-17bb4ea46ece" file="mule.test.properties" />
+	<munit:test name="test-suiteTest" description="MUnit Test" doc:id="d76ec2c4-5b77-4960-850a-fd20e2dc1325" >
+		<munit:execution>
+			<flow-ref doc:name="Call Query Flow" doc:id="55582677-f3cb-4a51-8266-3839325aa616" name="queryFlow"/>
+			<ee:transform doc:name="Prepare Test Payload" doc:id="1a33ae9d-9630-4b7a-9de8-96500b93a465">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var generateId= randomInt(100000)
+---
+[{
+	
+	Id : p('sfdc.accountId'),
+	Industry: 'Biology',
+	BillingAddress : {
+		country: 'USA',
+		city: 'Las Vegas',
+		street: 'street_account-broadcast_' ++ generateId
+	},
+	Name: "Test_account-broadcast_" ++ generateId,
+	Phone: '100' ++ generateId,
+	Website: 'http://acme.org'
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<set-variable value="#[payload[0]]" doc:name="Save Test Account" doc:id="ee1448bd-fd66-401a-9927-2b6bf4770256" variableName="TestAccount"/>
+			<flow-ref doc:name="Call Business Logic Flow" doc:id="a64a050f-08ca-4e0a-94c7-062ceacb35fb" name="businessLogicFlow"/>
+			<scripting:execute engine="groovy" doc:name="Sleep for 1m until the processing is completed" doc:id="0db05c45-3a5f-4d0a-a13f-b2adff990788" >
+				<scripting:code >sleep(60000)</scripting:code>
+			</scripting:execute>
+		
+</munit:execution>
+		<munit:validation>
+			<munit-tools:verify-call doc:name="Verify Salesforce Query Call" doc:id="376ad062-d32e-4614-b6b3-641ecf292ca9" processor="salesforce:query" times="1"/>
+			<flow-ref doc:name="Call Update Test" doc:id="368b5681-ef66-4871-9324-783f091c518d" name="updateTest"/>
+		</munit:validation>
+	</munit:test>
+	<sub-flow name="updateTest" doc:id="2f86f4ba-02c9-4871-b5dc-082605d3a90b">
+		<ee:transform doc:name="Prepare Get Customer Request" doc:id="899dfcad-2fab-4276-a4ea-10b162515642">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="getCustomerRequest"><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#Get_Customers_Request: {
+		ns0#Request_References: {
+			ns0#Customer_Reference: {
+				ns0#ID @(ns0#"type": "Customer_Reference_ID" ): vars.TestAccount.Id
+			}
+		},
+		ns0#Response_Group: {
+			ns0#Include_Customer_Data: true
+		}
+	}
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+		<workday:revenue-management doc:name="Get Customers" config-ref="Workday_Config_version_30" operation="Get_Customers">
+						<ee:repeatable-file-store-stream inMemorySize="2048" />
+						<workday:content><![CDATA[#[vars.getCustomerRequest]]]></workday:content>
+					</workday:revenue-management>
+		<ee:transform doc:name="Prepare Wday Response" doc:id="86e0395e-8368-44b6-867b-cc7f7321e835">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.Get_Customers_Response.Response_Data.Customer.Customer_Data]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		<munit-tools:assert-that doc:name="Assert that Customer Name was updated" doc:id="7b925592-bb91-44bd-8b1c-924631fdcc36" expression="#[payload.Customer_Name]" is="#[MunitTools::equalTo(vars.TestAccount.Name)]" message="Customer Name should be updated"/>
+		<munit-tools:assert-that doc:name="Assert that Phone was updated" doc:id="a6388fd1-e35a-4fbc-96cc-7cd8be2e805d" expression="#[payload.Business_Entity_Data.Contact_Data.Phone_Data.Phone_Number]" is="#[MunitTools::equalTo(vars.TestAccount.Phone)]" message="Phone should be updated"/>
+		<munit-tools:verify-call doc:name="Verify Submit Customer Call" doc:id="be27584a-8169-4c9e-bced-be51466f99c3" processor="workday:revenue-management">
+			<munit-tools:with-attributes >
+				<munit-tools:with-attribute attributeName="doc:id" whereValue="1a9119a7-b28f-4355-9cbb-e445d9d0dfaf" />
+			</munit-tools:with-attributes>
+		</munit-tools:verify-call>
+	
+</sub-flow>
+
+
+</mule>
