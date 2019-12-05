@@ -24,14 +24,16 @@ ns ns0 urn:com.workday/bsvc
 ---
 {
 	ns0#Get_Customers_Request: {
-		ns0#Request_Criteria: {
-			ns0#Customer_Request_ID: payload.Id
-		},
-		ns0#Response_Group: {
-			ns0#Include_Reference: true,
-			ns0#Include_Customer_Data: true
-		}
-	}
+        ns0#Request_References: {
+            ns0#Customer_Reference: {
+                ns0#ID @(ns0#"type": "Customer_Reference_ID" ): payload.Id
+            }
+        },
+        ns0#Response_Group: {
+            ns0#Include_Reference    : true,
+            ns0#Include_Customer_Data: true
+        }
+    }
 }]]></ee:set-variable>
 						</ee:variables>
 					</ee:transform>
