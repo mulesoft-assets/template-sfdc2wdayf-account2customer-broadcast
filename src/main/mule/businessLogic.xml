@@ -25,7 +25,7 @@ ns ns0 urn:com.workday/bsvc
 {
 	ns0#Get_Customers_Request: {
 		ns0#Request_Criteria: {
-			ns0#Customer_Reference_ID: payload.Id
+			ns0#Customer_Request_ID: payload.Id
 		},
 		ns0#Response_Group: {
 			ns0#Include_Reference: true,
