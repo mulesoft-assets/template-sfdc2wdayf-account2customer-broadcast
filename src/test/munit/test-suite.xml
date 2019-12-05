@@ -32,7 +32,7 @@ var generateId= randomInt(100000)
 		street: 'street_account-broadcast_' ++ generateId
 	},
 	Name: "Test_account-broadcast_" ++ generateId,
-	Phone: '100' ++ generateId,
+	Phone: p('test.wdayf.phone'),
 	Website: 'http://acme.org'
 }]]]></ee:set-payload>
 			</ee:message>
